@@ -1,7 +1,14 @@
-# Node.js
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
 dist/
-*.log
+build/
+.eggs/
+
+# Virtual Environment
+.venv/
+venv/
 
 # Environment
 .env
@@ -16,3 +23,4 @@ dist/
 
 # Logs
 logs/
+*.log
