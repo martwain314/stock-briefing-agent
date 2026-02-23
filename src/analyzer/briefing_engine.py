@@ -1,20 +1,20 @@
 """
 AI 브리핑 생성 엔진
 
-Claude API를 사용하여 수집된 데이터 기반 투자 브리핑을 생성합니다.
+Google Gemini API를 사용하여 수집된 데이터 기반 투자 브리핑을 생성합니다.
 상태를 가지지 않으므로 모듈 함수로 구성
 """
 
 import re
 from datetime import datetime
 
-import anthropic
+from google import genai
 from loguru import logger
 
 from src.common.types import BriefingResult, CollectedData
 
 # 모듈 레벨 클라이언트 (init 시 설정)
-_client: anthropic.Anthropic | None = None
+_client: genai.Client | None = None
 
 _SYSTEM_PROMPT = """당신은 개인 투자자를 위한 전문 투자 브리핑 비서입니다.
 
@@ -39,16 +39,19 @@ _SYSTEM_PROMPT = """당신은 개인 투자자를 위한 전문 투자 브리핑
 _BULLISH_KEYWORDS = ["상승", "반등", "호재", "강세", "회복", "매수", "긍정", "성장"]
 _BEARISH_KEYWORDS = ["하락", "급락", "악재", "약세", "위험", "매도", "부정", "침체"]
 
+# Gemini 모델명
+_MODEL_NAME = "gemini-2.0-flash"
+
 
 def init_analyzer(api_key: str) -> None:
     """AI 분석 엔진을 초기화
 
     Args:
-        api_key: Anthropic API Key
+        api_key: Google Gemini API Key
     """
     global _client
-    _client = anthropic.Anthropic(api_key=api_key)
-    logger.info("Claude AI 분석 엔진 초기화 완료")
+    _client = genai.Client(api_key=api_key)
+    logger.info("Gemini AI 분석 엔진 초기화 완료")
 
 
 def _format_data_for_prompt(data: CollectedData) -> str:
@@ -184,14 +187,16 @@ async def generate_briefing(
     try:
         logger.info(f"AI 브리핑 생성 중... ({time_label})")
 
-        response = _client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
+        response = _client.models.generate_content(
+            model=_MODEL_NAME,
+            contents=f"{_SYSTEM_PROMPT}\n\n{user_prompt}",
+            config=genai.types.GenerateContentConfig(
+                max_output_tokens=2000,
+                temperature=0.7,
+            ),
         )
 
-        content = response.content[0].text if response.content else ""
+        content = response.text or ""
         highlights = _extract_highlights(content)
         sentiment = _detect_sentiment(content)
 
@@ -226,14 +231,9 @@ async def generate_quick_alert(headline: str, context: str) -> str:
         raise RuntimeError("분석 엔진이 초기화되지 않았습니다.")
 
     try:
-        response = _client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=500,
-            system="투자자를 위한 빠른 뉴스 분석 비서입니다. 핵심만 간결하게 전달하세요. 한국어로 답변하세요.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""속보/중요 뉴스가 감지되었습니다:
+        prompt = f"""투자자를 위한 빠른 뉴스 분석 비서입니다. 핵심만 간결하게 전달하세요. 한국어로 답변하세요.
+
+속보/중요 뉴스가 감지되었습니다:
 
 제목: {headline}
 맥락: {context}
@@ -242,12 +242,18 @@ async def generate_quick_alert(headline: str, context: str) -> str:
 1. 핵심 내용 (1-2줄)
 2. 시장 영향 (상승/하락/중립)
 3. 영향 받는 섹터/종목
-4. 투자자 대응 제안 (1줄)""",
-                }
-            ],
+4. 투자자 대응 제안 (1줄)"""
+
+        response = _client.models.generate_content(
+            model=_MODEL_NAME,
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                max_output_tokens=500,
+                temperature=0.5,
+            ),
         )
 
-        return response.content[0].text if response.content else ""
+        return response.text or ""
     except Exception as e:
         logger.error(f"빠른 분석 실패: {e}")
         return f"⚠️ 알림: {headline}\n(AI 분석 일시적 오류)"

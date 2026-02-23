@@ -37,7 +37,7 @@ async def main() -> None:
     logger.info(f"관심 종목: {', '.join(settings.get_watchlist())}")
 
     # 2. AI 분석 엔진 초기화
-    init_analyzer(settings.anthropic_api_key)
+    init_analyzer(settings.gemini_api_key)
 
     # 3. 텔레그램 봇 초기화
     bot_service = TelegramBotService(

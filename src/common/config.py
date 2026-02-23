@@ -12,7 +12,7 @@ class AppSettings(BaseSettings):
     """애플리케이션 전체 설정"""
 
     # API Keys
-    anthropic_api_key: str = Field(..., description="Anthropic Claude API Key")
+    gemini_api_key: str = Field(..., description="Google Gemini API Key")
     telegram_bot_token: str = Field(..., description="Telegram Bot Token")
     telegram_chat_id: str = Field(..., description="Telegram Chat ID")
 

@@ -26,7 +26,7 @@ async def brief_now() -> None:
 
     print("📡 데이터 수집 중...\n")
 
-    init_analyzer(settings.anthropic_api_key)
+    init_analyzer(settings.gemini_api_key)
     watchlist = settings.get_watchlist()
 
     # 데이터 수집
